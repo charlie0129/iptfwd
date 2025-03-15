@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log/slog"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -9,6 +10,8 @@ import (
 )
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{})))
+
 	rootCmd := cobra.Command{
 		Use: "iptfwd",
 	}

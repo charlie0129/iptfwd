@@ -93,7 +93,22 @@ func run(cmd *cobra.Command, args []string) error {
 	// Append rules
 	for _, rule := range config.Rules {
 		logger := slog.With(slog.Group("rule", rule.SlogAttr()...))
-		logger.Info("appending rule")
+
+		existingRules, expectedRules, err := rule.Exists(ipt4)
+		if err != nil {
+			return errors.Wrapf(err, "failed to check existing rule (%s)", rule.String())
+		}
+
+		if existingRules == 0 {
+			logger.Info("Appending new rule")
+		} else if existingRules < expectedRules {
+			logger.Info("Completing existing rule")
+		} else if existingRules == expectedRules {
+			logger.Info("Rule already exists")
+		} else {
+			logger.Error("Unexpected state")
+		}
+
 		err = rule.AppendUnique(ipt4)
 		if err != nil {
 			return errors.Wrapf(err, "failed to append rule (%s)", rule.String())
@@ -102,6 +117,7 @@ func run(cmd *cobra.Command, args []string) error {
 
 	// Delete rules that are not in the config. (Only those that are managed by iptfwd)
 	if sync {
+		// TODO: move this forward-specific logic to pkg/portfwd
 		preroutingRules, err := ipt4.List("nat", "PREROUTING")
 		if err != nil {
 			return errors.Wrapf(err, "failed to list nat chains")
@@ -111,6 +127,7 @@ func run(cmd *cobra.Command, args []string) error {
 			return errors.Wrapf(err, "failed to list nat chains")
 		}
 
+		// Convert rules to portfwd.Spec
 		var specs []*portfwd.Spec
 		for _, chain := range append(preroutingRules, postroutingRules...) {
 			comment := utils.ExtractComment(chain)
@@ -121,7 +138,8 @@ func run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				continue
 			}
-			// Skip if already in specs.
+			// Skip if already in specs. Since each Spec has two rules (PREROUTING and POSTROUTING),
+			// duplications are expected.
 			skip := false
 			for _, spec := range specs {
 				if spec.Equals(existing) {
@@ -138,7 +156,7 @@ func run(cmd *cobra.Command, args []string) error {
 		for _, existing := range specs {
 			if !config.Contains(existing) {
 				logger := slog.With(slog.Group("rule", existing.SlogAttr()...))
-				logger.Info("deleting rule")
+				logger.Info("Deleting existing rule")
 				err := existing.DeleteIfExists(ipt4)
 				if err != nil {
 					return errors.Wrapf(err, "failed to delete rule (%s)", existing.String())

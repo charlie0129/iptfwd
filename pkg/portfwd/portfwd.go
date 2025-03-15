@@ -106,6 +106,9 @@ func (p *Spec) toPOSTROUTINGSpec() []string {
 	return []string{
 		"-p", string(p.Proto),
 		"-d", p.IPTo,
+		// Only masquerade packets leaving the public iface, not every iface, so we can preserve sip.
+		// However if the packet is meant to leave this host, do not add this.
+		"-o", p.IfaceFrom,
 		"--dport", strconv.FormatUint(uint64(p.PortFrom), 10),
 		"-j", "MASQUERADE",
 		"-m", "comment",
@@ -126,25 +129,26 @@ func (p *Spec) toFORWARDSpec() []string {
 	}
 }
 
-// Validate
+// rules exist, expected rules, error
+func (p *Spec) Exists(ipt *iptables.IPTables) (int, int, error) {
+	rulesExist := 0
 
-func (p *Spec) ExistsAny(ipt *iptables.IPTables) (bool, error) {
 	spec := p.toPREROUTINGSpec()
 	exists, err := ipt.Exists("nat", "PREROUTING", spec...)
 	if err != nil {
-		return false, errors.Wrapf(err, "failed to check PREROUTING rule %s", spec)
+		return rulesExist, 2, errors.Wrapf(err, "failed to check PREROUTING rule %s", spec)
 	}
 	if exists {
-		return true, nil
+		rulesExist++
 	}
 
 	spec = p.toPOSTROUTINGSpec()
 	exists, err = ipt.Exists("nat", "POSTROUTING", spec...)
 	if err != nil {
-		return false, errors.Wrapf(err, "failed to check POSTROUTING rule %s", spec)
+		return rulesExist, 2, errors.Wrapf(err, "failed to check POSTROUTING rule %s", spec)
 	}
 	if exists {
-		return true, nil
+		rulesExist++
 	}
 
 	// exists, err = ipt.Exists("nat", "FORWARD", p.toFORWARDSpec()...)
@@ -155,7 +159,7 @@ func (p *Spec) ExistsAny(ipt *iptables.IPTables) (bool, error) {
 	// 	return false, nil
 	// }
 
-	return false, nil
+	return rulesExist, 2, nil
 }
 
 func (p *Spec) AppendUnique(ipt *iptables.IPTables) error {
