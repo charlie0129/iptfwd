@@ -25,7 +25,7 @@ func NewFromComment(comment string) (*Spec, error) {
 	if len(components) != 6 {
 		return nil, errors.New("invalid comment")
 	}
-	if components[0] != "iptfwd" {
+	if components[0] != "iptfwdspecv0" {
 		return nil, errors.New("invalid comment")
 	}
 
@@ -86,7 +86,7 @@ func (p *Spec) dstAddr() string {
 }
 
 func (p *Spec) Comment() string {
-	return fmt.Sprintf("iptfwd_%s_%s_%d_%s_%d",
+	return fmt.Sprintf("iptfwdspecv0_%s_%s_%d_%s_%d",
 		p.Proto, p.IfaceFrom, p.PortFrom, p.IPTo, p.PortTo)
 }
 
