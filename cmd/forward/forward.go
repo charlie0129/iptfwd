@@ -104,7 +104,7 @@ func run(cmd *cobra.Command, args []string) error {
 		} else if existingRules < expectedRules {
 			logger.Info("Completing existing rule")
 		} else if existingRules == expectedRules {
-			logger.Info("Rule already exists")
+			logger.Debug("Rule already exists")
 		} else {
 			logger.Error("Unexpected state")
 		}
