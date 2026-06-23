@@ -1,15 +1,15 @@
 MAKEFLAGS += --no-print-directory --always-make --silent
 
-TARGET := iptfwd
+BIN    ?= iptfwd
 PREFIX ?= /usr/local/bin
 
-all: bin/$(TARGET)
+all: bin/$(BIN)
 
 bin:
 	mkdir -p bin
 
-bin/$(TARGET): bin
-	GOOS=linux go build -ldflags "-s -w" -gcflags="all=-trimpath=$$(pwd)" -asmflags="all=-trimpath=$$(pwd)" -o bin/$(TARGET) main.go
+bin/$(BIN): bin
+	CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -gcflags="all=-trimpath=$$(pwd)" -asmflags="all=-trimpath=$$(pwd)" -o bin/$(BIN) main.go
 
-install: bin/$(TARGET)
-	install bin/$(TARGET) $(PREFIX)
+install: bin/$(BIN)
+	install bin/$(BIN) $(PREFIX)

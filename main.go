@@ -10,6 +10,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/charlie0129/iptfwd/cmd/forward"
+	"github.com/charlie0129/iptfwd/cmd/installservice"
 )
 
 type SlogLogLevelValue slog.Level
@@ -67,6 +68,7 @@ func main() {
 		},
 	}
 	rootCmd.AddCommand(forward.NewCommand())
+	rootCmd.AddCommand(installservice.NewCommand())
 	pf := rootCmd.PersistentFlags()
 	pf.Var(&LogLevel, "log-level", "Set the log level (debug, info, warn, error)")
 

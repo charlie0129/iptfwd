@@ -1,6 +1,6 @@
 package portfwd
 
-import "errors"
+import "fmt"
 
 type Proto string
 
@@ -14,6 +14,6 @@ func NewProto(p string) (Proto, error) {
 	case string(ProtoUDP):
 		return ProtoUDP, nil
 	default:
-		return Proto(""), errors.New("invalid proto")
+		return Proto(""), fmt.Errorf("invalid proto %q, expected tcp or udp", p)
 	}
 }

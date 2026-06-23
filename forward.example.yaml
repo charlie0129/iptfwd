@@ -1,0 +1,38 @@
+defaults:
+  public_iface: eno1
+  private_iface: vmbr0
+  manage_filter: true
+  enable_ip_forwarding: true
+
+nat:
+  - name: intranet-v4
+    source: 10.9.14.0/24
+    type: masquerade
+
+  - name: intranet-v6
+    source: fd10:9:14::/64
+    type: snat
+    to_source: 2001:da8::1
+
+rules:
+  - name: vm100-ssh-v4
+    proto: tcp
+    public_port: 2222
+    target: 10.9.14.100
+    target_port: 22
+
+  - name: vm100-ssh-v6
+    proto: tcp
+    public_port: 2222
+    target: fd10:9:14::100
+    target_port: 22
+
+  - name: vm100-wireguard-v4
+    proto: udp
+    public_port: 51820
+    target: 10.9.14.100
+
+  - name: vm100-wireguard-v6
+    proto: udp
+    public_port: 51820
+    target: fd10:9:14::100
