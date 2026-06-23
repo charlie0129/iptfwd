@@ -37,7 +37,7 @@ func NewCommand() *cobra.Command {
 		Name:            "iptfwd",
 		BinaryPath:      "/usr/local/bin/iptfwd",
 		ConfigPath:      "/etc/iptfwd/forward.yaml",
-		ServiceLogLevel: "debug",
+		ServiceLogLevel: "info",
 		Enable:          true,
 	}
 
@@ -46,7 +46,26 @@ func NewCommand() *cobra.Command {
 		Short: "Install iptfwd as a boot service",
 		Long: `Install iptfwd as a oneshot boot service.
 
-The service runs "iptfwd forward --sync" at boot. systemd and OpenRC are supported.`,
+The service runs "iptfwd forward --sync" at boot. systemd and OpenRC are
+supported.
+
+Defaults:
+  binary path:  /usr/local/bin/iptfwd
+  config path:  /etc/iptfwd/forward.yaml
+  service name: iptfwd
+  service log:  info
+
+Install behavior:
+  The installer copies the current executable to --binary, writes the native
+  service file, and enables the service at boot by default. It does not start
+  the service unless --start is passed, so installation does not unexpectedly
+  rewrite live iptables state.
+
+Use --dry-run to print generated files and commands without changing the host.
+Use --init systemd or --init openrc to bypass auto-detection.`,
+		Example: `  iptfwd install-service --config /etc/iptfwd/forward.yaml
+  iptfwd install-service --dry-run --init systemd
+  iptfwd install-service --config /etc/iptfwd/forward.yaml --start`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(opts)
 		},

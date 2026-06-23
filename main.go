@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
+	"github.com/charlie0129/iptfwd/cmd/cleanup"
 	"github.com/charlie0129/iptfwd/cmd/forward"
 	"github.com/charlie0129/iptfwd/cmd/installservice"
 )
@@ -67,8 +68,16 @@ func main() {
 			SetupLogger(slog.Level(LogLevel))
 		},
 	}
+	rootCmd.AddCommand(cleanup.NewCommand())
 	rootCmd.AddCommand(forward.NewCommand())
 	rootCmd.AddCommand(installservice.NewCommand())
+	rootCmd.Short = "Manage host NAT and port forwarding rules"
+	rootCmd.Long = `iptfwd manages host-level outbound NAT/NAT66 and DNAT port forwarding
+rules using iptables/ip6tables.
+
+The intended model is one desired-state config per host. Use "forward --sync"
+to apply that config deterministically at runtime or from the boot service. Use
+"cleanup" to delete all iptfwd-owned chains and jumps.`
 	pf := rootCmd.PersistentFlags()
 	pf.Var(&LogLevel, "log-level", "Set the log level (debug, info, warn, error)")
 

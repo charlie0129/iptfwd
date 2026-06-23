@@ -56,6 +56,18 @@ iptfwd forward --config forward.yaml --sync
 
 Without `--sync`, missing rules are added and stale rules are left alone. With `--sync`, app-owned rules are made to match the config.
 
+`iptfwd` treats the config passed to `forward --sync` as the complete desired state for all iptfwd-managed rules on the host. It clears and replaces rules inside `IPTFWD-*` chains, and removes managed chains/jumps that have no rules in the current config. Use one config per host. To remove a specific rule, edit that config and rerun `forward --sync`.
+
+## Cleanup
+
+Delete all iptfwd-managed state:
+
+```sh
+iptfwd cleanup
+```
+
+`cleanup` does not read a config file. It removes all `IPTFWD-*` chains and their jumps for IPv4 and IPv6, and leaves non-iptfwd rules untouched.
+
 ## Boot Service
 
 Install `iptfwd` as a oneshot boot service:

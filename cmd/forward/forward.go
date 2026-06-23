@@ -30,9 +30,31 @@ func NewCommand() *cobra.Command {
 		Short:   "Manage NAT and port forwarding",
 		Long: `Manage outbound NAT and port forwarding using iptables/ip6tables.
 
-By default, iptfwd appends missing rules but does not delete stale rules. Use --sync to make the app-owned custom chains match the config exactly.
+Config model:
+  iptfwd treats one config file as the desired state for this host. The config
+  can contain outbound NAT/NAT66 rules in "nat:" and DNAT port forwards in
+  "rules:".
 
-iptfwd owns only its IPTFWD-* chains.`,
+Managed chains:
+  nat/IPTFWD-PREROUTING   DNAT port forwards
+  nat/IPTFWD-POSTROUTING  outbound NAT/NAT66
+  filter/IPTFWD-FORWARD   forwarding accepts
+
+Sync behavior:
+  Without --sync, iptfwd adds missing managed chains, jumps, and rules, but
+  leaves stale managed rules in place.
+
+  With --sync, the given config is the complete desired state for all
+  iptfwd-managed rules on the host. iptfwd clears and replaces rules inside
+  IPTFWD-* chains, and deletes managed chains/jumps that have no rules in the
+  current config. Use one config per host. To remove one rule, edit the config
+  and rerun forward --sync.
+
+Logging:
+  Info logs show actual changes and high-level apply progress. Debug logs add
+  normalized config details, skip decisions, and exact iptables rule specs.`,
+		Example: `  iptfwd forward --config /etc/iptfwd/forward.yaml --sync
+  iptfwd --log-level debug forward --config forward.yaml --sync`,
 		RunE: run,
 	}
 

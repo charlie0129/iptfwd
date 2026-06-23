@@ -86,6 +86,16 @@ func Apply(ipt *iptables.IPTables, chains []ManagedChain, rules []Rule, sync boo
 	return nil
 }
 
+func Cleanup(ipt *iptables.IPTables, chains []ManagedChain) error {
+	slog.Debug("Cleaning up managed chains", "managed_chains", len(chains))
+	for _, chain := range chains {
+		if err := cleanupManagedChain(ipt, chain); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func RulesForChain(rules []Rule, table, chain string) []Rule {
 	var filtered []Rule
 	for _, rule := range rules {
@@ -106,22 +116,7 @@ func applyManagedChain(ipt *iptables.IPTables, chain ManagedChain, rules []Rule,
 	logger.Debug("Checking managed chain", "sync", sync)
 
 	if len(rules) == 0 && sync {
-		exists, err := ipt.ChainExists(chain.Table, chain.UserChain)
-		if err != nil {
-			return errors.Wrapf(err, "failed to check %s/%s", chain.Table, chain.UserChain)
-		}
-		if !exists {
-			logger.Debug("Managed chain does not exist; nothing to delete")
-			return nil
-		}
-		if err := deleteJump(ipt, chain); err != nil {
-			return err
-		}
-		if err := ipt.ClearAndDeleteChain(chain.Table, chain.UserChain); err != nil {
-			return errors.Wrapf(err, "failed to delete %s/%s", chain.Table, chain.UserChain)
-		}
-		logger.Info("Deleted managed chain with no configured rules")
-		return nil
+		return cleanupManagedChain(ipt, chain)
 	}
 	if len(rules) == 0 {
 		logger.Debug("No configured rules for managed chain")
@@ -146,6 +141,33 @@ func applyManagedChain(ipt *iptables.IPTables, chain ManagedChain, rules []Rule,
 		}
 	}
 
+	return nil
+}
+
+func cleanupManagedChain(ipt *iptables.IPTables, chain ManagedChain) error {
+	logger := slog.With(
+		"table", chain.Table,
+		"base_chain", chain.BaseChain,
+		"chain", chain.UserChain,
+	)
+
+	if err := deleteJump(ipt, chain); err != nil {
+		return err
+	}
+
+	exists, err := ipt.ChainExists(chain.Table, chain.UserChain)
+	if err != nil {
+		return errors.Wrapf(err, "failed to check %s/%s", chain.Table, chain.UserChain)
+	}
+	if !exists {
+		logger.Debug("Managed chain does not exist; nothing to delete")
+		return nil
+	}
+
+	if err := ipt.ClearAndDeleteChain(chain.Table, chain.UserChain); err != nil {
+		return errors.Wrapf(err, "failed to delete %s/%s", chain.Table, chain.UserChain)
+	}
+	logger.Info("Deleted managed chain")
 	return nil
 }
 
