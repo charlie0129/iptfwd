@@ -15,7 +15,7 @@ import (
 
 type SlogLogLevelValue slog.Level
 
-var LogLevel SlogLogLevelValue = SlogLogLevelValue(slog.LevelDebug)
+var LogLevel SlogLogLevelValue = SlogLogLevelValue(slog.LevelInfo)
 
 func (v *SlogLogLevelValue) Set(s string) error {
 	var l slog.Level

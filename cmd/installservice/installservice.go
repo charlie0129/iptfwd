@@ -37,7 +37,7 @@ func NewCommand() *cobra.Command {
 		Name:            "iptfwd",
 		BinaryPath:      "/usr/local/bin/iptfwd",
 		ConfigPath:      "/etc/iptfwd/forward.yaml",
-		ServiceLogLevel: "info",
+		ServiceLogLevel: "debug",
 		Enable:          true,
 	}
 

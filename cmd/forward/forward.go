@@ -50,6 +50,7 @@ func run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	slog.Debug("Loaded config file", "path", configFile)
 
 	var ifaces []string
 	if !skipChecks {
@@ -57,12 +58,21 @@ func run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return errors.Wrapf(err, "failed to list interfaces")
 		}
+		slog.Debug("Listed network interfaces", "interfaces", ifaces)
+	} else {
+		slog.Debug("Skipped interface existence checks")
 	}
 
 	normalized, err := config.Normalize(ifaces, !skipChecks)
 	if err != nil {
 		return errors.Wrap(err, "config validation failed")
 	}
+	slog.Debug(
+		"Normalized config",
+		"nat_rules", len(normalized.NAT),
+		"port_forward_rules", len(normalized.Rules),
+		"enable_ip_forwarding", config.EnableIPForwarding(),
+	)
 
 	families := normalized.Families()
 	if config.EnableIPForwarding() && len(families) > 0 {
@@ -73,6 +83,11 @@ func run(cmd *cobra.Command, args []string) error {
 		for _, setting := range changed {
 			slog.Info("Enabled IP forwarding setting", "setting", setting)
 		}
+		if len(changed) == 0 {
+			slog.Debug("IP forwarding settings already enabled", "families", families)
+		}
+	} else if !config.EnableIPForwarding() {
+		slog.Debug("Skipped IP forwarding setup because it is disabled in config")
 	}
 
 	grouped := normalized.RulesByFamily()
@@ -98,24 +113,32 @@ func run(cmd *cobra.Command, args []string) error {
 			}
 			return errors.Wrapf(err, "failed to create %s iptables handler", family)
 		}
+		slog.Debug("Created iptables handler", "family", family, "rules", len(rules), "sync", sync)
 
-		for _, spec := range normalized.NAT {
-			if spec.Family == family {
-				slog.Info("Applying outbound NAT rule", spec.SlogAttr()...)
-			}
-		}
-		for _, spec := range normalized.Rules {
-			if spec.Family == family {
-				slog.Info("Applying port forwarding rule", spec.SlogAttr()...)
-			}
-		}
-
+		slog.Info("Applying managed rules", "family", family, "rules", len(rules), "sync", sync)
+		logNormalizedRules(family, normalized)
 		if err := fw.Apply(ipt, fw.ManagedChains(), rules, sync); err != nil {
 			return errors.Wrapf(err, "failed to apply %s rules", family)
 		}
+		slog.Info("Applied managed rules", "family", family, "rules", len(rules), "sync", sync)
 	}
 
 	return nil
+}
+
+func logNormalizedRules(family fw.Family, normalized NormalizedConfig) {
+	for idx, spec := range normalized.NAT {
+		if spec.Family == family {
+			attrs := append([]any{"index", idx}, spec.SlogAttr()...)
+			slog.Debug("Prepared outbound NAT rule", attrs...)
+		}
+	}
+	for idx, spec := range normalized.Rules {
+		if spec.Family == family {
+			attrs := append([]any{"index", idx}, spec.SlogAttr()...)
+			slog.Debug("Prepared port forwarding rule", attrs...)
+		}
+	}
 }
 
 func loadConfig(path string) (*Config, error) {
