@@ -7,7 +7,7 @@ It is intended for small NAT/NAT66 gateway hosts, such as a Proxmox server with:
 - public interface: `eno1`
 - private bridge: `vmbr0`
 - private IPv4 subnet routed through NAT
-- private IPv6 ULA subnet routed through NAT66
+- private IPv6 ULA subnet routed through NAT66. Before criticizing me: yeah I know NAT66 is not recommended, but sometimes you only have a /128 IP address (like Kimsufi bare metal servers) and you want your VMs to have IPv6 connectivity. This is a simple way to do it.
 
 ## Config
 
