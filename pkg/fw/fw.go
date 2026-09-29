@@ -151,10 +151,11 @@ func cleanupManagedChain(ipt *iptables.IPTables, chain ManagedChain) error {
 		"chain", chain.UserChain,
 	)
 
-	if err := deleteJump(ipt, chain); err != nil {
-		return err
-	}
-
+	// Check the managed chain first. A jump to a chain that does not exist
+	// cannot exist either, and probing for it with `-C` makes iptables fail
+	// with "Couldn't load target" (exit status 2) instead of reporting a
+	// missing rule, which would surface here as a spurious error whenever a
+	// config has no rules for this chain (for example an empty `rules:`).
 	exists, err := ipt.ChainExists(chain.Table, chain.UserChain)
 	if err != nil {
 		return errors.Wrapf(err, "failed to check %s/%s", chain.Table, chain.UserChain)
@@ -162,6 +163,10 @@ func cleanupManagedChain(ipt *iptables.IPTables, chain ManagedChain) error {
 	if !exists {
 		logger.Debug("Managed chain does not exist; nothing to delete")
 		return nil
+	}
+
+	if err := deleteJump(ipt, chain); err != nil {
+		return err
 	}
 
 	if err := ipt.ClearAndDeleteChain(chain.Table, chain.UserChain); err != nil {
