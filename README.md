@@ -92,14 +92,40 @@ After MASQUERADE, if eno1 currently has 203.0.113.10:
 src=203.0.113.10            dst=1.1.1.1
 ```
 
-For NAT66, prefer `snat` with an explicit `to_source`. IPv6 interfaces often have more than one address, such as link-local, stable global, temporary privacy, or addresses from multiple prefixes. NAT66 also tends to be a deliberate workaround for a specific public IPv6 address. Explicit SNAT makes the external source address predictable and avoids relying on whatever address `MASQUERADE` selects from the outgoing interface.
+For NAT66 with a fixed public IPv6 address, prefer `snat` with an explicit `to_source`. IPv6 interfaces often have more than one address, such as link-local, stable global, temporary privacy, or addresses from multiple prefixes. NAT66 also tends to be a deliberate workaround for a specific public IPv6 address. Explicit SNAT makes the external source address predictable and avoids relying on whatever address `MASQUERADE` selects from the outgoing interface.
+
+If the public IPv6 address is dynamic, for example when the ISP assigns a new prefix on every reconnect, use `masquerade` and omit `to_source`:
+
+```yaml
+nat:
+  - source: fd10:9:14::/64
+    outbound_iface: eno1
+    type: masquerade
+```
+
+```text
+Before:
+src=fd10:9:14::100          dst=2606:4700:4700::1111
+
+After MASQUERADE, if eno1 currently has 2001:db8:1::10:
+src=2001:db8:1::10          dst=2606:4700:4700::1111
+
+After eno1 is renumbered to 2001:db8:2::10, a new connection gets:
+src=2001:db8:2::10          dst=2606:4700:4700::1111
+```
+
+A fixed `to_source` goes stale as soon as the public address changes, and outbound IPv6 from the private network stops working until you edit the config and rerun `iptfwd`. `MASQUERADE` instead asks the kernel for a source address each time a connection starts. The kernel uses standard IPv6 source address selection (RFC 6724), which prefers addresses on the outgoing interface and avoids deprecated ones, so new connections move to the new address once the old one is deprecated or removed. Connections that were already open keep the old address and break when it goes away; no NAT type can avoid that.
+
+Temporary (privacy) addresses also affect which address `MASQUERADE` picks. If `eno1` is set to prefer temporary addresses (`net.ipv6.conf.eno1.use_tempaddr=2`), new connections use the current temporary address, which the kernel rotates about once a day by default. External services then see the source address change even when the prefix stays the same, which can break IP allowlists. For an outbound address that only changes when the prefix does, set `use_tempaddr` on `eno1` to `0` (no temporary addresses) or `1` (keep them, but prefer the stable address). If NetworkManager, systemd-networkd, or another tool configures `eno1`, use its IPv6 privacy setting instead, or it may override the sysctl.
+
+If `eno1` gets its IPv6 address or default route from router advertisements, as with SLAAC, it must keep accepting them while IPv6 forwarding is on. `iptfwd` turns on IPv6 forwarding by default (`defaults.enable_ip_forwarding`). With forwarding on, the kernel ignores router advertisements on interfaces with the default `accept_ra=1`, and removes the default routes it learned from them. `eno1` then stops learning new prefixes and has no IPv6 default route. Set `net.ipv6.conf.eno1.accept_ra=2` persistently, for example in `/etc/sysctl.d/`, or use the equivalent option in your network configuration.
 
 Rule of thumb:
 
-
 - IPv4 with dynamic WAN address: masquerade is convenient
 - IPv4 with fixed WAN address: snat is explicit
-- IPv6 NAT66: prefer snat with `to_source`
+- IPv6 NAT66 with dynamic WAN address: masquerade, since a fixed `to_source` goes stale
+- IPv6 NAT66 with fixed WAN address: prefer snat with `to_source`
 
 ## Config
 

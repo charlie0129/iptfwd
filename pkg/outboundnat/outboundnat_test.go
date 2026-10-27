@@ -34,6 +34,54 @@ func TestIPv4MasqueradeRule(t *testing.T) {
 	}
 }
 
+func TestIPv6MasqueradeRule(t *testing.T) {
+	spec, err := (Spec{
+		Source: "fd10:9:14::/64",
+		Type:   TypeMasquerade,
+	}).Normalize(Defaults{
+		OutboundIface: "eno1",
+		PrivateIface:  "vmbr0",
+	})
+	if err != nil {
+		t.Fatalf("Normalize() error = %v", err)
+	}
+
+	if spec.Family != fw.FamilyIPv6 {
+		t.Fatalf("Family = %s, want %s", spec.Family, fw.FamilyIPv6)
+	}
+	if spec.Type != TypeMasquerade {
+		t.Fatalf("Type = %s, want %s", spec.Type, TypeMasquerade)
+	}
+
+	nat := spec.Rules()[0]
+	if nat.Table != "nat" || nat.Chain != fw.PostroutingChain {
+		t.Fatalf("NAT rule table/chain = %s/%s, want nat/%s", nat.Table, nat.Chain, fw.PostroutingChain)
+	}
+	if !slices.Contains(nat.Spec, "fd10:9:14::/64") {
+		t.Fatalf("NAT rule spec = %v, want source prefix", nat.Spec)
+	}
+	if !slices.Contains(nat.Spec, "MASQUERADE") {
+		t.Fatalf("NAT rule spec = %v, want MASQUERADE", nat.Spec)
+	}
+	if slices.Contains(nat.Spec, "--to-source") {
+		t.Fatalf("NAT rule spec = %v, want no --to-source", nat.Spec)
+	}
+}
+
+func TestMasqueradeRejectsToSource(t *testing.T) {
+	_, err := (Spec{
+		Source:   "fd10:9:14::/64",
+		Type:     TypeMasquerade,
+		ToSource: "2001:da8::1",
+	}).Normalize(Defaults{
+		OutboundIface: "eno1",
+		PrivateIface:  "vmbr0",
+	})
+	if err == nil {
+		t.Fatal("Normalize() error = nil, want to_source error")
+	}
+}
+
 func TestIPv6SNATRule(t *testing.T) {
 	spec, err := (Spec{
 		Source:   "fd10:9:14::/64",
